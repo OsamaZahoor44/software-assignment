@@ -1,36 +1,36 @@
-name: Frontend CI
+name: Frontend CI/CD
 
 on:
   push:
     branches:
       - master
-  pull_request:
-    branches:
-      - master
+    paths:
+      - 'client/**'
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout code from the repository
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-      # Set up Node.js
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14'  # specify the version you're using
+      - name: Login to Heroku Container Registry
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: |
+          echo "$HEROKU_API_KEY" | docker login --username=_ --password-stdin registry.heroku.com
 
-      # Install dependencies
-      - name: Install dependencies
-        run: npm install
+      - name: Build frontend Docker image
+        run: |
+          docker build -t registry.heroku.com/YOUR_FRONTEND_HEROKU_APP_NAME/web ./client
 
-      # Run tests
-      - name: Run frontend tests
-        run: npm test
+      - name: Push frontend Docker image to Heroku
+        run: |
+          docker push registry.heroku.com/YOUR_FRONTEND_HEROKU_APP_NAME/web
 
-      # Build the frontend app
-      - name: Build frontend app
-        run: npm run build
+      - name: Release frontend app
+        run: |
+          heroku container:release web --app YOUR_FRONTEND_HEROKU_APP_NAME
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}

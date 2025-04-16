@@ -1,36 +1,36 @@
-name: Backend CI
+name: Backend CI/CD
 
 on:
   push:
     branches:
       - master
-  pull_request:
-    branches:
-      - master
+    paths:
+      - 'server/**'
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout code from the repository
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-      # Set up Node.js
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14'  # specify the version you're using
+      - name: Login to Heroku Container Registry
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: |
+          echo "$HEROKU_API_KEY" | docker login --username=_ --password-stdin registry.heroku.com
 
-      # Install dependencies
-      - name: Install dependencies
-        run: npm install
+      - name: Build backend Docker image
+        run: |
+          docker build -t registry.heroku.com/YOUR_BACKEND_HEROKU_APP_NAME/web ./server
 
-      # Run tests
-      - name: Run backend tests
-        run: npm test
+      - name: Push backend Docker image to Heroku
+        run: |
+          docker push registry.heroku.com/YOUR_BACKEND_HEROKU_APP_NAME/web
 
-      # Lint the backend code
-      - name: Lint code
-        run: npm run lint
+      - name: Release backend app
+        run: |
+          heroku container:release web --app YOUR_BACKEND_HEROKU_APP_NAME
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
